@@ -26,6 +26,7 @@ type Request struct {
         Url             string
         Headers         map[string]string
 	BasicAuth	BasicAuth
+	Values    map[string][]string
         Timeout         int
 }
 
@@ -75,6 +76,18 @@ func (r *Request) SetBasicAuth(username, password string) {
 	r.BasicAuth = ba
 }
 
+func (r *Request) ValueAdd(name, value string) {
+	if len(r.Values) == 0 {
+		r.Values = make(map[string][]string)
+	}
+
+	if _, ok := r.Values[name]; ok {
+		r.Values[name] = append(r.Values[name], value)
+	} else {
+		r.Values[name] = []string{value}
+	}
+}
+
 func (r *Request) Do(method string, body io.Reader) Result {
         tlsConfig := &tls.Config{InsecureSkipVerify: true}
 
@@ -102,6 +115,16 @@ func (r *Request) Do(method string, body io.Reader) Result {
 
 	if r.BasicAuth != (BasicAuth{}) {
 		req.SetBasicAuth(r.BasicAuth.Username, r.BasicAuth.Password)
+	}
+
+	if len(r.Values) > 0 {
+		q := req.URL.Query()
+
+		for k, values := range r.Values {
+			for _, v := range values {
+				q.Add(k, v)
+			}
+		}
 	}
 
         resp, err := clnt.Do(req)
