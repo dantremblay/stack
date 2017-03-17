@@ -1,20 +1,20 @@
 package client
 
 import (
-        "crypto/tls"
+	"crypto/tls"
 	"io"
-        "io/ioutil"
-        "net/http"
-        "time"
+	"io/ioutil"
+	"net/http"
+	"time"
 )
 
 type Config struct {
-//        UserAgent       string
-	Scheme		string
-	Host		string
-	Port		int
-	Path		string
-        Timeout         int
+	//        UserAgent       string
+	Scheme  string
+	Host    string
+	Port    int
+	Path    string
+	Timeout int
 }
 
 type BasicAuth struct {
@@ -23,18 +23,18 @@ type BasicAuth struct {
 }
 
 type Request struct {
-        Url             string
-        Headers         map[string]string
-	BasicAuth	BasicAuth
+	Url       string
+	Headers   map[string]string
+	BasicAuth BasicAuth
 	Values    map[string][]string
-        Timeout         int
+	Timeout   int
 }
 
 type Result struct {
-        StatusCode      int
-        Header          http.Header
-        Body            []byte
-        Error           error
+	StatusCode int
+	Header     http.Header
+	Body       []byte
+	Error      error
 }
 
 var EmptyHeader = http.Header{}
@@ -49,12 +49,12 @@ var methods = []string{
 }
 
 func New(c *Config) (Request, error) {
-        txtUrl := buildUrl(c)
+	txtUrl := buildUrl(c)
 
-        return Request{
-                Url: txtUrl,
-                Timeout: c.Timeout,
-        }, nil
+	return Request{
+		Url:     txtUrl,
+		Timeout: c.Timeout,
+	}, nil
 }
 
 func (r *Request) HeaderAdd(name, value string) {
@@ -89,21 +89,21 @@ func (r *Request) ValueAdd(name, value string) {
 }
 
 func (r *Request) Do(method string, body io.Reader) Result {
-        tlsConfig := &tls.Config{InsecureSkipVerify: true}
+	tlsConfig := &tls.Config{InsecureSkipVerify: true}
 
-        transport := &http.Transport{TLSClientConfig: tlsConfig}
+	transport := &http.Transport{TLSClientConfig: tlsConfig}
 
-        timeout := time.Second * time.Duration(r.Timeout)
+	timeout := time.Second * time.Duration(r.Timeout)
 
-        clnt := &http.Client{
-                Transport: transport,
-                Timeout: timeout,
-        }
+	clnt := &http.Client{
+		Transport: transport,
+		Timeout:   timeout,
+	}
 
 	req, err := http.NewRequest(method, r.Url, body)
-        if err != nil {
-                return Result{500, EmptyHeader, nil, err}
-        }
+	if err != nil {
+		return Result{500, EmptyHeader, nil, err}
+	}
 
 	r.HeaderAdd("Content-Type", "application/json")
 
@@ -127,18 +127,18 @@ func (r *Request) Do(method string, body io.Reader) Result {
 		}
 	}
 
-        resp, err := clnt.Do(req)
-        if err != nil {
-                return Result{resp.StatusCode, req.Header, nil, err}
-        }
-        defer resp.Body.Close()
+	resp, err := clnt.Do(req)
+	if err != nil {
+		return Result{resp.StatusCode, req.Header, nil, err}
+	}
+	defer resp.Body.Close()
 
-        b, err := ioutil.ReadAll(resp.Body)
-        if err != nil {
-                return Result{resp.StatusCode, req.Header, nil, err}
-        }
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return Result{resp.StatusCode, req.Header, nil, err}
+	}
 
-        return Result{resp.StatusCode, req.Header, b, nil}
+	return Result{resp.StatusCode, req.Header, b, nil}
 }
 
 func (r *Request) Get() Result {
