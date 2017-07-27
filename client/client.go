@@ -144,6 +144,8 @@ func (r *Request) Do(method string, data io.Reader) Result {
 				q.Add(k, v)
 			}
 		}
+
+		req.URL.RawQuery = q.Encode()
 	}
 
 	resp, err := clnt.Do(req)
