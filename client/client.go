@@ -7,15 +7,26 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/http/cookiejar"
 	"time"
+
+	//"github.com/juju/persistent-cookiejar"
+	"golang.org/x/net/publicsuffix"
 )
 
+type Cookie struct {
+	Enabled  bool
+	Filename string
+	Jar      http.CookieJar
+}
+
 type Config struct {
-	Scheme  string
-	Host    string
-	Port    int
-	Path    string
-	Timeout int
+	Scheme    string
+	Host      string
+	Port      int
+	Path      string
+	Cookie    Cookie
+	Timeout   int
 }
 
 type ConfigUnix struct {
@@ -30,17 +41,19 @@ type BasicAuth struct {
 
 type Request struct {
 	UnixSocketPath string
-	URL            string
-	Headers        map[string]string
-	BasicAuth      BasicAuth
-	Values         map[string][]string
-	Timeout        int
+	URL       string
+	Headers   map[string]string
+	BasicAuth BasicAuth
+	Values    map[string][]string
+	Cookie    Cookie
+	Timeout   int
 }
 
 type Result struct {
-	Response *http.Response
-	Body     []byte
-	Error    error
+	Response  *http.Response
+	CookieJar http.CookieJar
+	Body      []byte
+	Error     error
 }
 
 var EmptyHeader = http.Header{}
@@ -57,10 +70,13 @@ var methods = []string{
 func New(c *Config) (Request, error) {
 	txtUrl := buildUrl(c)
 
-	return Request{
+	req := Request{
 		URL:     txtUrl,
+		Cookie:  c.Cookie,
 		Timeout: c.Timeout,
-	}, nil
+	}
+
+	return req, nil
 }
 
 func NewUnix(c *ConfigUnix) (Request, error) {
@@ -121,6 +137,23 @@ func (r *Request) Do(method string, data io.Reader) Result {
 
 	clnt.Transport = transport
 
+	if r.Cookie.Enabled {
+		if r.Cookie.Jar != nil {
+			clnt.Jar = r.Cookie.Jar
+		} else {
+			options := cookiejar.Options{
+				PublicSuffixList: publicsuffix.List,
+				//Filename:         r.Cookie.Filename,
+			}
+			jar, err := cookiejar.New(&options)
+			if err != err {
+				return Result{Error: err}
+			}
+
+			clnt.Jar = jar
+		}
+	}
+
 	req, err := http.NewRequest(method, r.URL, data)
 	if err != nil {
 		return Result{Error: err}
@@ -169,7 +202,7 @@ func (r *Request) Do(method string, data io.Reader) Result {
 		return Result{Response: resp, Error: err}
 	}
 
-	return Result{Response: resp, Body: body}
+	return Result{Response: resp, CookieJar: clnt.Jar, Body: body}
 }
 
 func (r *Request) Options() Result {
