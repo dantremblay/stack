@@ -13,7 +13,13 @@ func BuildUserAgent(progname, version string) string {
 
 func buildUrl(c *Config) string {
 	//return fmt.Sprintf("%s://%s:%s%s?%s", c.Scheme, c.Host, strconv.Itoa(c.Port), c.Path, query.Encode())
-	return fmt.Sprintf("%s://%s:%s%s", c.Scheme, c.Host, strconv.Itoa(c.Port), c.Path)
+	url := fmt.Sprintf("%s://%s:%s%s", c.Scheme, c.Host, strconv.Itoa(c.Port), c.Path)
+
+	if (c.Scheme == "http" && c.Port == 80) || (c.Scheme == "https" && c.Port == 443) {
+		url = fmt.Sprintf("%s://%s%s", c.Scheme, c.Host, c.Path)
+	}
+
+	return url
 }
 
 type URL struct {
